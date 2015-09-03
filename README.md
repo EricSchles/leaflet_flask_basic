@@ -155,13 +155,66 @@ map.on('click', onMapClick);
 
 Here we create a popup object.  Notice that we make use of this popup object by wrapping it in a function that calls three of it's methods:
 
-setLatLng - This method captures the latitude/longitude that was clicked and saves it to the popup object, binding the marker to the location you clicked.
-setContent -  This method displays the latitude/longitude
-openOn - opens the popup object and displays the associated content
+`setLatLng` - This method captures the latitude/longitude that was clicked and saves it to the popup object, binding the marker to the location you clicked.
+`setContent` -  This method displays the latitude/longitude
+`openOn` - opens the popup object and displays the associated content
 
-Finnally we have - map.on('click',onMapClick):
+Finnally we have - `map.on('click',onMapClick)`:
 
 This method turns on the click action for the map, and sets it to the function we created.  Notice that we have one global popup object that gets changed as we click on different places in the map.
+
+So now we understand a lot of what Leaflet.js can do, which is great.  Of course, all of this was static, as far as the data goes.  By making use of server, which can request different data points you can:
+
+* filter by different data points, 
+* bring in different data sets, 
+* extrapolate data points,
+* regroup the data elements dynamically, according to some clustering algorithm
+
+Clearly this adds a whole layer of flexibility and dynamics that would otherwise be lost.  So how do we do that?
+
+Let's start with the most basic server and templated html possible:
+
+server.py:
+
+```
+import json
+from flask import Flask, render_template
+app = Flask(__name__)
+
+@app.route("/",methods=["GET","POST"])
+def index():
+    states = [{
+        "type":"Feature",
+        "properties": {"party": "Republican"},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-104.05, 48.99],
+                [-97.22,  48.98],
+                [-96.58,  45.94],
+                [-104.03, 45.94],
+                [-104.05, 48.99]
+            ]]
+        }
+    }, {
+        "type": "Feature",
+        "properties": {"party": "Democrat"},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [-109.05, 41.00],
+                [-102.06, 40.99],
+                [-102.03, 36.99],
+                [-109.04, 36.99],
+            [-109.05, 41.00]
+            ]]
+        }
+    }]
+
+    return render_template("index.html",states=json.dumps(states))
+```
+
+Here we have a simple flask app, the only difference is the static geojson - stored as a python dictionary.  Notice the necessary pieces - type, properties, geometry.  These are all the necessary keys. The geometry key is where the lat/long actually lives.  Notice
 
 
 
