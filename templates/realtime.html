@@ -1,0 +1,16 @@
+<html>
+<head>
+    <title>Leaflet Realtime</title>
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    
+</head>
+<body>
+    <div id="map" style="width: 600px; height: 400px"></div>
+
+    <!-- source: https://github.com/perliedman/leaflet-realtime -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script>
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet-src.js"></script>
+    <script src="{{ url_for('static', filename='js/leaflet-realtime.js') }}"></script>
+    <script src=" {{ url_for('static', filename='js/index.js') }}"></script>
+</body>
+</html>

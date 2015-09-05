@@ -6,6 +6,7 @@ from flaskext import uploads
 import pandas as pd 
 import os
 from werkzeug import secure_filename
+from glob import glob
 
 UPLOAD_FOLDER = os.getcwd() + "/static/uploads"
 ALLOWED_EXTENSIONS = set(['csv'])
@@ -16,20 +17,33 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 @app.route("/<filename>",methods=["GET","POST"])
 @app.route("/",methods=["GET","POST"])
 def index(filename=None):
+    datasets = [File.split("/")[-1] for File in glob("static/uploads/*")]
     if filename:
         full_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if os.path.exists(full_path):
-            return render_template("index.html",states=json.dumps(transform_csv(full_path)))
+            return render_template("index.html",states=json.dumps(transform_csv(full_path)),datasets=datasets)
+        return "fail"
     else:
-        return render_template("index.html",states=json.dumps([{}]))
+        return render_template("index.html",states=json.dumps([{}]),datasets=datasets)
 
 @app.route("/basic",methods=["GET","POST"])
 def basic():
     return render_template("basic.html")
 
+@app.route("/realtime",methods=["GET","POST"])
+def realtime():
+    return render_template("realtime.html")
+
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+
+@app.route("/listing_of_datasets",methods=["GET","POST"])
+def listing_of_datasets():
+    if request.method == "POST":
+        dataset = request.form.get("datasets")
+    return redirect(url_for("index")+dataset)
 
 def transform_csv(filename):
     df = pd.DataFrame.from_csv(filename,index_col=False)
