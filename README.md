@@ -214,7 +214,143 @@ def index():
     return render_template("index.html",states=json.dumps(states))
 ```
 
-Here we have a simple flask app, the only difference is the static geojson - stored as a python dictionary.  Notice the necessary pieces - type, properties, geometry.  These are all the necessary keys. The geometry key is where the lat/long actually lives.  Notice
+Here we have a simple flask app, the only difference is the static geojson - stored as a python dictionary.  Notice the necessary pieces - type, properties, geometry.  These are all the necessary keys. The geometry key is where the lat/long actually lives.  Notice that we make use of json.dumps to pass our states to the front end.  After that our application is complete.  As a next example, let's look at a real-time map - that is continually populated from an api.
+
+##Our API
+
+Since we already know what geojson should look like, building an api shoudl be easy:
+
+```
+from flask import Flask, render_template, redirect, url_for
+import random
+import json
+app = Flask(__name__)
+
+@app.after_request
+def after_request(response):
+  response.headers.add('Access-Control-Allow-Origin', '*')
+  response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+  return response
+
+@app.route("/send_areas",methods=["GET","POST"])
+def send_areas():
+    areas = [{
+        "type":"Feature",
+        "properties": {"glob": "1st"},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+                [[random.randint(100,106) + random.random(), random.randint(44,49) + random.random()] for i in xrange(4)]
+            ]
+        }
+    }, {
+        "type": "Feature",
+        "properties": {"glob": "2nd"},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+                [[random.randint(100,106) + random.random(), random.randint(44,49) + random.random()] for i in xrange(4)]
+            ]
+        }
+    }]
+    return json.dumps(areas)
+
+app.run(debug=True,port=5001,threaded=True)
+```
+
+Notice that, except for the randomly generated data, everything here is exactly the same as our last example.  However there is something new here:
+
+```
+@app.after_request
+def after_request(response):
+  response.headers.add('Access-Control-Allow-Origin', '*')
+  response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+  return response
+```
+
+Since we'll be running both a server and api, we'll need to allow for cross origin from both the server and client side.  We'll handle the front end piece in a second.  But here is the server side - essentially this is just appending authorization to the header.  Notice that we allow GET,PUT,POST, and DELETE methods.  We are also giving full access via Access-Control-Allow-Origin, *.  The * means all domains are allowed to access our api.  Of course, we could restrict this to just a single domain or a list of domains.  If this were a closed API or an api that required some kind of authentication that would be best.  However, this is randomly generated data so we are not in any sort of danger by making it completely open.  
+
+Now onto the front end real-time piece:
+
+For this we'll make use of an extention of leaflet.js which can be found here - [realtime-leaflet.js](https://github.com/perliedman/leaflet-realtime)
+
+Here is our server:
+
+```
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/realtime",methods=["GET","POST"])
+def realtime():
+    return render_template("realtime.html")
+
+app.run()
+```
+
+Notice it is as simple as possible.  Next let's look at realtime.html:
+
+```
+<html>
+<head>
+    <title>Leaflet Realtime</title>
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    
+</head>
+<body>
+    <div id="map" style="width: 600px; height: 400px"></div>
+
+    <!-- source: https://github.com/perliedman/leaflet-realtime -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.3/leaflet.js"></script>
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet-src.js"></script>
+    <script src="{{ url_for('static', filename='js/leaflet-realtime.js') }}"></script>
+    <script src=" {{ url_for('static', filename='js/index.js') }}"></script>
+</body>
+</html>
+```
+
+Notice that it too is very simple.  Most of this is just including the necessary javascript libraries.  The only file we really care about is index.js, which we'll look at next.  Notice that we also include a file called leaflet-realtime.js which we got from the github repo for realtime-leaflet.js  
+
+index.js:
+
+```
+var map = L.map('map'),
+    realtime = L.realtime({
+        url: 'http://localhost:5001/send_areas', /*'https://wanderdrone.appspot.com/' - works for sure */
+        crossOrigin: true,
+        type: 'json'
+    }, {
+        interval: 3 * 1000
+    }).addTo(map);
+
+L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6IjZjNmRjNzk3ZmE2MTcwOTEwMGY0MzU3YjUzOWFmNWZhIn0.Y8bhBaUMqFiPrDRW9hieoQ', {
+	maxZoom: 18,
+	attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+		'<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+		'Imagery © <a href="http://mapbox.com">Mapbox</a>',
+	id: 'mapbox.streets'
+	}).addTo(map);
+
+realtime.on('update', function() {
+    map.fitBounds(realtime.getBounds(), {maxZoom: 3});
+});
+```
+
+As you can see there isn't a lot new here either.  The major difference is the map object which has crossOrigin set to true (allowing us to access our API like we did on the api side) setting our interval (how often we make calls out to our api) and adding our realtime map to the map object.  Note that the tileLayer is exactly the same as before.  Finally we turn realtime 'on' by calling realtime's on method.  We set the method to update (meaning it will make calls to the api) and we pass in a function which sets some configuration.  In this case the anonymous function simply sets the bounds, which are preset and then sets the maxZoom (how zoomed into the map we are).  
+to see our code in action you can check out [this repo] and then run the following code:
+
+first we start up the api:
+
+`python geo_json_api.py`
+
+Then start the server:
+
+python server.py
+
+Then open a web browser and head to - [http://localhost:5000/realtime](http://localhost:5000/realtime)
 
 
 
+How might we use this?  An interesting use might be setting up our api to pull from a series of open data sources, like New York City's open real time apis and marrying that with say turnstyle data.  Watching how city complaints marry with city subway usage might be an interesting experiment.  Of course, the content our api serves over time would need to grow, each request serving more and more content or we'd only see one data point at a time.  

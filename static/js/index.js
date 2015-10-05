@@ -1,6 +1,6 @@
 var map = L.map('map'),
     realtime = L.realtime({
-        url: 'http://localhost:5001/send_areas', /*'https://wanderdrone.appspot.com/' - works for sure */
+        url: 'http://localhost:5001/send_areas', /* 'https://wanderdrone.appspot.com/', - works for sure */
         crossOrigin: true,
         type: 'json'
     }, {
